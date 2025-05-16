@@ -146,3 +146,19 @@ void touchHeatMap(struct TouchPoint t) {
 }
 
 #endif
+
+#if defined(HAS_BTN)
+unsigned long LongPressTmp;
+void keyPressHandler(volatile bool &btn, const std::function<void()> &shortPressFunc, const std::function<void()> &longPressFunc) {
+    LongPress = true;
+    if (btn) {
+        LongPressTmp = millis();
+        while (btn && millis() - LongPressTmp < 600) delay(50);
+        if (btn) {
+            longPressFunc();
+            while (btn) delay(50);
+        } else shortPressFunc();
+    }
+    LongPress = false;
+}
+#endif
