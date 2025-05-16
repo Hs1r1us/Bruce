@@ -2,9 +2,11 @@
 #include "core/led_control.h"
 #include "core/sd_functions.h"
 #include "core/type_convertion.h"
+#include "core/utils.h"
 #include "rf_send.h"
 #include <globals.h>
 #include <sstream>
+#include "core/display.h"
 
 RFScan::RFScan() {
     setup();
@@ -31,24 +33,56 @@ void RFScan::setup() {
     restartScan = false;
 }
 
+bool keyLock = false;
 void RFScan::loop() {
     while (1) {
+        keyPressHandler(
+            SelPress,
+            [&]() {
+                if (!keyLock) {
+                    replay_signal(false);
+                    display_info(received, signals, ReadRAW, codesOnly, autoSave, title);
+                }
+            },
+            [&]() {
+                keyLock = !keyLock;
+                display_info(received, signals, ReadRAW, codesOnly, autoSave, title);
+            }
+        );
+
         if (bruceConfig.rfFxdFreq) frequency = bruceConfig.rfFreq;
         if (frequency <= 0) init_freqs();
 
         while (frequency <= 0) { // FastScan
-            if (check(EscPress) || returnToMenu) return;
-            if (check(NextPress)) select_menu_option();
-            if (restartScan) break;
+            keyPressHandler(
+                SelPress,
+                [&]() {
+                    if (!keyLock) {
+                        replay_signal(false);
+                        display_info(received, signals, ReadRAW, codesOnly, autoSave, title);
+                    }
+                },
+                [&]() {
+                    keyLock = !keyLock;
+                    display_info(received, signals, ReadRAW, codesOnly, autoSave, title);
+                }
+            );
+            if (!keyLock) {
+                if (check(EscPress) || returnToMenu) return;
+                if (check(NextPress)) select_menu_option();
+                if (restartScan) break;
+            }
 
             fast_scan();
         }
 
-        if (check(EscPress) || returnToMenu) return;
-        if (check(NextPress)) select_menu_option();
-        if (restartScan) {
-            setup();
-            continue;
+        if (!keyLock) {
+            if ((check(EscPress) || returnToMenu)) return;
+            if (check(NextPress)) select_menu_option();
+            if (restartScan) {
+                setup();
+                continue;
+            }
         }
 
         if (rcswitch.available() && !ReadRAW) {
@@ -100,6 +134,8 @@ void RFScan::fast_scan() {
 
             bruceConfig.setRfFreq(_freqs[max_index].freq, 0);
             frequency = _freqs[max_index].freq;
+            // bruceConfig.setRfFreq(checkFrequency, 0);
+            // frequency = checkFrequency;
             setMHZ(frequency);
             Serial.println("Frequency Found: " + String(frequency));
             rcswitch.resetAvailable();
@@ -395,6 +431,12 @@ void display_info(RfCodes received, int signals, bool ReadRAW, bool codesOnly, b
 
     padprintln("");
     padprintln("Press [NEXT] for options.");
+    if (received.protocol != "") padprintln("Press [ENTER] for replay.");
+    if (keyLock) {
+        padprintln("LongPress [ENTER] for unlock.");
+        printFootnote("LOCKED");
+    }
+    else padprintln("LongPress [ENTER] for lock.");
 }
 
 void display_signal_data(RfCodes received) {
