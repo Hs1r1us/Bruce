@@ -14,7 +14,6 @@ SPIClass touchSPI;
 void _setup_gpio() {
     pinMode(XPT2046_CS, OUTPUT);
     digitalWrite(XPT2046_CS, HIGH);
-    bruceConfig.colorInverted = 1;
     bruceConfig.rotation = 0; // portrait mode for Phantom
     tft.setRotation(bruceConfig.rotation);
     uint16_t calData[5] = {275, 3500, 280, 3590, 3}; // 0011 = 3
@@ -76,11 +75,21 @@ void InputHandler(void) {
         // tft.getTouchRaw(&t2.x, &t2.y);
         digitalWrite(TOUCH_CS, HIGH);
         if (_IH_touched) {
+            NextPress = false;
+            PrevPress = false;
+            UpPress = false;
+            DownPress = false;
+            SelPress = false;
+            EscPress = false;
+            AnyKeyPress = false;
+            NextPagePress = false;
+            PrevPagePress = false;
+            touchPoint.pressed = false;
             _IH_touched = false;
 
             // Serial.printf("\nRAWRaw: Touch Pressed on x=%d, y=%d", t2.x, t2.y);
             // Serial.printf("\nRAW:    Touch Pressed on x=%d, y=%d", t.x, t.y);
-            if (bruceConfig.rotation == 2) {
+            if (bruceConfig.rotation == 0) {
                 t.y = (tftHeight + 20) - t.y;
                 t.x = tftWidth - t.x;
             }

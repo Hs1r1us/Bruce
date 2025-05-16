@@ -231,7 +231,7 @@ void displayError(String txt, bool waitKeyPress) {
 #endif
     displayRedStripe(txt);
     delay(200);
-    while (waitKeyPress && !check(AnyKeyPress)) delay(100);
+    while (waitKeyPress && !check(AnyKeyPress)) vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void displayWarning(String txt, bool waitKeyPress) {
@@ -241,7 +241,7 @@ void displayWarning(String txt, bool waitKeyPress) {
 #endif
     displayRedStripe(txt, TFT_BLACK, TFT_YELLOW);
     delay(200);
-    while (waitKeyPress && !check(AnyKeyPress)) delay(100);
+    while (waitKeyPress && !check(AnyKeyPress)) vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void displayInfo(String txt, bool waitKeyPress) {
@@ -252,7 +252,7 @@ void displayInfo(String txt, bool waitKeyPress) {
     // todo: add newlines to txt if too long
     displayRedStripe(txt, TFT_WHITE, TFT_BLUE);
     delay(200);
-    while (waitKeyPress && !check(AnyKeyPress)) delay(100);
+    while (waitKeyPress && !check(AnyKeyPress)) vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void displaySuccess(String txt, bool waitKeyPress) {
@@ -263,7 +263,7 @@ void displaySuccess(String txt, bool waitKeyPress) {
     // todo: add newlines to txt if too long
     displayRedStripe(txt, TFT_WHITE, TFT_DARKGREEN);
     delay(200);
-    while (waitKeyPress && !check(AnyKeyPress)) delay(100);
+    while (waitKeyPress && !check(AnyKeyPress)) vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void displayTextLine(String txt, bool waitKeyPress) {
@@ -274,7 +274,7 @@ void displayTextLine(String txt, bool waitKeyPress) {
     // todo: add newlines to txt if too long
     displayRedStripe(txt, getComplementaryColor2(bruceConfig.priColor), bruceConfig.priColor);
     delay(200);
-    while (waitKeyPress && !check(AnyKeyPress)) delay(100);
+    while (waitKeyPress && !check(AnyKeyPress)) vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 void setPadCursor(int16_t padx, int16_t pady) {
@@ -469,7 +469,6 @@ int loopOptions(std::vector<Option> &options, uint8_t menuType, const char *subT
             }
             firstRender = false;
             redraw = false;
-            while (SelPress) delay(100); // to avoid miss click due to heavy fingers
         }
 
         handleSerialCommands();
@@ -527,12 +526,11 @@ int loopOptions(std::vector<Option> &options, uint8_t menuType, const char *subT
             if ((index + 1) > options.size()) index = 0;
             redraw = true;
         }
-        delay(10);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
 
         /* Select and run function */
-        if (SelPress) {
+        if (check(SelPress)) {
             Serial.println("Selected: " + String(options[index].label));
-            while (SelPress) delay(50); // to avoid miss click due to heavy fingers
             options[index].operation();
             break;
         }
@@ -563,7 +561,6 @@ int loopOptions(std::vector<Option> &options, uint8_t menuType, const char *subT
         }
 #endif
     }
-    while (SelPress) delay(100); // to avoid miss click due to heavy fingers
     return index;
 }
 
