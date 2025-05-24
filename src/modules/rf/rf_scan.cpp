@@ -1,5 +1,4 @@
 #include "rf_scan.h"
-#include "core/display.h"
 #include "core/led_control.h"
 #include "core/sd_functions.h"
 #include "core/type_convertion.h"
@@ -16,7 +15,10 @@ RFScan::RFScan() {
 RFScan::~RFScan() { deinitRfModule(); }
 
 void RFScan::setup() {
-    if (!initRfModule("rx", bruceConfig.rfFreq)) { return; }
+    if (!initRfModule("rx", bruceConfig.rfFreq)) {
+        returnToMenu = true;
+        return;
+    }
 
     RCSwitch_Enable_Receive(rcswitch);
 
@@ -120,31 +122,33 @@ bool RFScan::fast_scan() {
     float checkFrequency = subghz_frequency_list[idx];
     setMHZ(checkFrequency);
     tft.drawPixel(0, 0, 0); // To make sure CC1101 shared with TFT works properly
+    printFootnote(String(checkFrequency, 2) + (keyLock ? " LOCKED" : ""));
     vTaskDelay(5 / portTICK_PERIOD_MS);
-    rssi = ELECHOUSE_cc1101.getRssi();
-    if (rssi > rssiThreshold) {
-        _freqs[_try].freq = checkFrequency;
-        _freqs[_try].rssi = rssi;
-        _try++;
-        if (_try >= _MAX_TRIES) {
-            int max_index = 0;
-            for (int i = 1; i < _MAX_TRIES; ++i) {
-                if (_freqs[i].rssi > _freqs[max_index].rssi) { max_index = i; }
-            }
+    long tmp = 0;
+    while(1){
+        rssi = ELECHOUSE_cc1101.getRssi();
+        if (rssi > rssiThreshold && _try < _MAX_TRIES) {
+            tmp = millis();
+            _freqs[_try].freq = subghz_frequency_list[idx];
+            _freqs[_try].rssi = rssi;
+            _try++;
+            continue;
+        } else if (_try > 0){
+            if (millis() - tmp > 500 || _try >= _MAX_TRIES){
+                int max_index = 0;
+                for (int i = 1; i < _try; ++i) {
+                    if (_freqs[i].rssi > _freqs[max_index].rssi) { max_index = i; }
+                }
 
-            bruceConfig.setRfFreq(_freqs[max_index].freq, 2); // change to fixed frequency
-            frequency = _freqs[max_index].freq;
-            // bruceConfig.setRfFreq(checkFrequency, 0);
-            // frequency = checkFrequency;
-            setMHZ(frequency);
-            Serial.println("Frequency Found: " + String(frequency));
-            rcswitch.resetAvailable();
-
-            return true;
+                frequency = _freqs[max_index].freq;
+                Serial.println("Frequency Found: " + String(frequency));
+                // rcswitch.resetAvailable();
+                return true;
+            } else { vTaskDelay(5 / portTICK_RATE_MS); continue; }
         }
+        ++idx;
+        return false;
     }
-    ++idx;
-    return false;
 }
 
 void RFScan::read_rcswitch() {
@@ -165,10 +169,10 @@ void RFScan::read_rcswitch() {
         received.filepath = "signal_" + String(signals);
         received.data = "";
 
-        frequency = 0;
         display_info(received, signals, ReadRAW, codesOnly, autoSave, title);
     }
 
+    frequency = 0;
     rcswitch.resetAvailable();
 }
 
@@ -251,6 +255,7 @@ void RFScan::read_raw() {
         display_info(received, signals, ReadRAW, codesOnly, autoSave, title);
     }
 
+    frequency = 0;
     rcswitch.resetAvailable();
 }
 
@@ -430,12 +435,14 @@ void display_info(RfCodes received, int signals, bool ReadRAW, bool codesOnly, b
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     padprintln("");
-    padprintln("Press [NEXT] for options.");
-    if (received.protocol != "") padprintln("Press [ENTER] for replay.");
     if (keyLock) {
-        padprintln("LongPress [ENTER] for unlock.");
+        padprintln("LongPress " + String(BTN_ALIAS) +" for unlock.");
         printFootnote("LOCKED");
-    } else padprintln("LongPress [ENTER] for lock.");
+    } else {
+        padprintln("Press [NEXT] for options.");
+        if (received.protocol != "") padprintln("Press " + String(BTN_ALIAS) +" for replay.");
+        padprintln("LongPress " + String(BTN_ALIAS) +" for lock.");
+    }
 }
 
 void display_signal_data(RfCodes received) {
@@ -453,6 +460,8 @@ void display_signal_data(RfCodes received) {
 
     if (received.key > 0) {
         decimalToHexString(received.key, hexString);
+        padprintln("Freq: " + String(received.frequency));
+
         if (received.protocol == "RAW") {
             padprintln("Lenght: " + String(received.Bit) + " transitions");
             // tft.setCursor(tft.getCursorX(), tft.getCursorY() + 2);
