@@ -75,7 +75,7 @@ void RFScan::loop() {
                 if (restartScan) break;
             }
 
-            if (fast_scan() && rcswitch.RAWavailable()) { break; }
+            if (fast_scan() && (ReadRAW ? rcswitch.RAWavailable() : rcswitch.available())) { break; }
         }
 
         if (!keyLock) {
