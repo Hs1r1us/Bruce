@@ -73,7 +73,7 @@ void RFScan::loop() {
                 if (restartScan) break;
             }
 
-            if (fast_scan()) return setup(); // frequency found, reset
+            if (fast_scan() && rcswitch.RAWavailable()) { break; }
         }
 
         if (!keyLock) {
