@@ -12,6 +12,4 @@ void showDeviceInfo();
 void touchHeatMap(struct TouchPoint t);
 
 void keyPressHandler(volatile bool &btn, const std::function<void()> &shortPressFunc, const std::function<void()> &longPressFunc);
-void setBatteryCapacity(void);
-
 #endif
